@@ -1,0 +1,23 @@
+# envx project data
+.envx/
+
+# Build artifacts
+bin/
+dist/
+*.exe
+
+# Go
+vendor/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Python reference (legacy-python)
+__pycache__/
+*.egg-info/
+venv/
+.pytest_cache/
+.pytest_tmp/

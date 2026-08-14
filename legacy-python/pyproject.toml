@@ -1,0 +1,51 @@
+[build-system]
+requires = ["hatchling>=1.26.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "envx"
+version = "0.2.0"
+description = "Project-local environment variable manager with encrypted secret storage and subprocess injection."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+  { name = "ASUS" }
+]
+keywords = ["cli", "environment", "secrets", "devops", "typer"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Environment :: Console",
+  "Operating System :: OS Independent",
+  "Topic :: Software Development :: Build Tools",
+  "Topic :: Security :: Cryptography",
+]
+dependencies = [
+  "cryptography>=46.0.0,<47.0.0",
+  "typer>=0.12,<1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0,<9.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/example/envx"
+Repository = "https://github.com/example/envx"
+Issues = "https://github.com/example/envx/issues"
+
+[project.scripts]
+envx = "envx.cli.app:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["envx"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
