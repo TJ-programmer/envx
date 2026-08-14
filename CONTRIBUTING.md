@@ -156,7 +156,7 @@ Releases are automated via GitHub Actions + GoReleaser. Maintainers only:
 
 The prebuilt binaries and `checksums.txt` are consumed by `scripts/install.sh`, `scripts/install.ps1`, and the `npm/` package installer. Keep the extra distribution channels in sync:
 
-1. **npm** — bump `version` in `npm/package.json` to the released version, then publish:
+1. **npm** — bump `version` in `npm/package.json` to the released version, then publish (scoped `@tj-programmer/envx`, public via `publishConfig`):
 
    ```bash
    cd npm
@@ -169,4 +169,4 @@ The prebuilt binaries and `checksums.txt` are consumed by `scripts/install.sh`, 
 
 3. **Scoop** — bump `version` in `scoop/envx.json`; fill the two `hash` fields with the SHA-256s from `checksums.txt` for `envx_X.Y.Z_windows_amd64.zip` and `envx_X.Y.Z_windows_arm64.zip`. If the manifest lives in a bucket, `scoop checkver --update` does this automatically via `autoupdate`.
 
-> Test every channel from a clean machine after a release: the one-liner installers, `npm i -g envx`, `brew install envx`, and `scoop install envx`.
+> Test every channel from a clean machine after a release: the one-liner installers, `npm i -g @tj-programmer/envx`, `brew install envx`, and `scoop install envx`.

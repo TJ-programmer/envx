@@ -63,9 +63,9 @@ Install with whatever you already use — npm/pnpm/bun, Homebrew, or Scoop all w
 
 ```bash
 # npm / pnpm / bun (downloads the prebuilt binary for your platform)
-npm install -g envx
-pnpm add -g envx
-bun add -g envx
+npm install -g @tj-programmer/envx
+pnpm add -g @tj-programmer/envx
+bun add -g @tj-programmer/envx
 
 # macOS / Linux
 brew tap TJ-programmer/envx
@@ -100,7 +100,7 @@ cd envx
 go build -o bin/envx ./cmd/envx
 ```
 
-> **Forks:** the installers and the npm package default to `TJ-programmer/envx`. Point them anywhere with `ENVX_REPO=owner/repo` (or `$env:ENVX_REPO` on Windows). The npm package also honors `ENVX_VERSION` to install a specific version.
+> **Forks:** the installers and the npm package (`@tj-programmer/envx`) default to `TJ-programmer/envx`. Point them anywhere with `ENVX_REPO=owner/repo` (or `$env:ENVX_REPO` on Windows). The npm package also honors `ENVX_VERSION` to install a specific version.
 
 ### How releases work
 

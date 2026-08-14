@@ -4,22 +4,22 @@
 
 Project-local environment variables. Secrets encrypted at rest. Zero daemons, zero network, zero third-party.
 
-This is an npm wrapper for the [envx](https://github.com/TJ-programmer/envx) single static binary. The package downloads the correct prebuilt binary for your platform from the GitHub release during install — no compiler, runtime, or interpreter needed.
+This is the npm wrapper for the [envx](https://github.com/TJ-programmer/envx) single static binary. The package downloads the correct prebuilt binary for your platform from the GitHub release during install — no compiler, runtime, or interpreter needed. It installs as the `envx` command.
 
 Works identically with **npm**, **pnpm**, and **bun**.
 
 ## Install
 
 ```bash
-npm install -g envx
-pnpm add -g envx
-bun add -g envx
+npm install -g @tj-programmer/envx
+pnpm add -g @tj-programmer/envx
+bun add -g @tj-programmer/envx
 ```
 
 Or run it on demand without installing:
 
 ```bash
-npx envx --version
+npx @tj-programmer/envx --version
 ```
 
 ## Quickstart

@@ -63,7 +63,7 @@ scoop/envx.json           Scoop manifest (prebuilt binaries; fill hashes on rele
 1. Tag `vX.Y.Z` and push — release.yml + GoReleaser builds binaries + checksums.
 2. Bump `internal/buildinfo.Version` to next dev version.
 3. Sync distribution channels (keep `npm/package.json` version in sync):
-   - **npm**: bump `version` in `npm/package.json`, run `npm publish` from `npm/`. The `postinstall` (`install.js`) downloads the matching release binary + verifies its SHA-256 from `checksums.txt` — no binary is committed.
+   - **npm**: bump `version` in `npm/package.json`, run `npm publish` from `npm/` (scoped `@tj-programmer/envx`, public via `publishConfig`; installs the `envx` command). The `postinstall` (`install.js`) downloads the matching release binary + verifies its SHA-256 from `checksums.txt` — no binary is committed.
    - **Homebrew**: update `url`/`sha256` in `brew/envx.rb` (formula builds from source).
    - **Scoop**: bump `version` in `scoop/envx.json` and fill the two `hash` fields from `checksums.txt`.
 
