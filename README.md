@@ -6,7 +6,7 @@
 
 - **Project-specific, like `.env`** — all state lives in one `.envx/` directory; nothing global, no daemon, no network, no third-party.
 - **Safer by default** — plain values by default (exact `.env` semantics); `--secret` encrypts values at rest with a project-local Fernet key.
-- **No manual `.gitignore`** — secrets and keys live inside `.envx/`, so a single ignored directory is all you need.
+- **Secrets stay out of git** — secrets and keys live inside `.envx/`, so a single ignored directory is all you need.
 - **Fast** — single Go binary, ~10ms startup.
 - **No manual `.gitignore`** — `envx init` adds `.envx/` to your `.gitignore` automatically (opt out with `--no-gitignore`).
 - **One command to migrate** — `envx init && envx import .env`.
@@ -42,6 +42,8 @@ envx get KEY [--env ENV] [--show-secret]
 envx list [--env ENV] [--show-secrets] [--format table|json]
 envx unset KEY [--env ENV]
 envx run [--env ENV] [--shell "cmd | pipe"] [--overlay] [--watch] -- <command>...
+envx shell [--env ENV] [--shell CMD] [--overlay]
+envx copy KEY [KEY...] [--env ENV]
 envx env create|use|delete|list
 envx import FILE.env [--env ENV]
 envx export [--env ENV] [--format shell|dotenv|json]
@@ -64,6 +66,8 @@ All commands accept `--root DIR` to point at a project instead of auto-discoveri
 - `doctor` checks project health: key present, config valid, secrets stored in plaintext that look sensitive, and whether `.envx/` is gitignored.
 - `config` manages project-local settings such as `encryption.default_encrypt` (store everything encrypted), `encryption.key_backend` (`file` or `keyring`), and `migration.overlay_dotenv` (always overlay a legacy `.env` in `run`).
 - `run --watch` restarts the child command whenever `.env`, `.envx/config.json`, or the key file changes — ideal for dev servers that should pick up env changes automatically.
+- `shell` starts an interactive subshell with the resolved variables loaded (`pwsh`/`powershell`/`cmd` on Windows, `bash`/`zsh`/`fish`/`$SHELL` elsewhere) with an `(envx)` prompt indicator; `--shell CMD` runs a one-shot command instead. Both `run` and `shell` set `ENVX_ACTIVE=1` in the child environment so scripts can detect they are running under envx.
+- `copy` decrypts one or more values and writes them to the system clipboard without printing them to the terminal.
 - `key rotate` generates a fresh encryption key and re-encrypts every secret, backing up the old key; `key export`/`key import` backup and restore a key file.
 - `encryption.key_backend` selects where the encryption key lives. The default `file` backend stores it in `.envx/key.bin`. Set `config set encryption.key_backend keyring` (or `init --backend keyring`) on Windows to keep the key in the OS Credential Manager instead — envx migrates the existing key automatically, in either direction.
 - `web` starts a local GUI on `http://127.0.0.1:4319` (foreground; `--port` to change, `--no-open` to skip launching the browser). It's a single embedded page backed by a JSON API — no daemon, no third-party, no network beyond localhost. It auto-refreshes every 2s (paused while the tab is hidden) so changes made in a terminal show up live, and it can initialize a project directly (`POST /api/init`).

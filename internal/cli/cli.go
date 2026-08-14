@@ -35,6 +35,10 @@ func RunWithIO(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return cmdUnset(args[1:], stdout, stderr)
 	case "run":
 		return cmdRun(args[1:], stdout, stderr)
+	case "shell":
+		return cmdShell(args[1:], stdout, stderr)
+	case "copy":
+		return cmdCopy(args[1:], stdout, stderr)
 	case "env":
 		return cmdEnv(args[1:], stdout, stderr)
 	case "import":
@@ -107,6 +111,8 @@ var commandUsage = map[string]string{
 	"list":        "usage: envx list [--env ENV] [--show-secrets] [--format table|json] [--root DIR]",
 	"unset":       "usage: envx unset KEY [--env ENV] [--root DIR]",
 	"run":         "usage: envx run [--env ENV] [--shell CMD] [--overlay] [--watch] [--root DIR] -- <command>...",
+	"shell":       "usage: envx shell [--env ENV] [--shell CMD] [--overlay] [--root DIR]",
+	"copy":        "usage: envx copy KEY [KEY...] [--env ENV] [--root DIR]",
 	"env":         "usage: envx env create|use|delete|list [NAME] [--root DIR]",
 	"import":      "usage: envx import FILE [--env ENV] [--root DIR]",
 	"export":      "usage: envx export [--env ENV] [--format shell|dotenv|json] [--root DIR]",
@@ -244,6 +250,8 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "  list         List environment variables.")
 	fmt.Fprintln(w, "  unset        Remove an environment variable.")
 	fmt.Fprintln(w, "  run          Run a command with injected variables.")
+	fmt.Fprintln(w, "  shell        Start an interactive subshell with injected variables.")
+	fmt.Fprintln(w, "  copy         Copy secret values to the clipboard.")
 	fmt.Fprintln(w, "  env          Manage named environments (create/use/delete/list).")
 	fmt.Fprintln(w, "  import       Import variables from a .env file.")
 	fmt.Fprintln(w, "  export       Export variables as shell, dotenv, or JSON.")

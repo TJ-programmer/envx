@@ -39,7 +39,7 @@ func TestHelpCommand(t *testing.T) {
 }
 
 func TestCommandHelpFlag(t *testing.T) {
-	for _, cmd := range []string{"init", "set", "get", "list", "unset", "run", "env", "import", "export", "diff", "doctor", "config", "key", "web", "completions"} {
+	for _, cmd := range []string{"init", "set", "get", "list", "unset", "run", "shell", "copy", "env", "import", "export", "diff", "doctor", "config", "key", "web", "completions"} {
 		out, _, code := runSilent(cmd, "--help")
 		if code != 0 {
 			t.Fatalf("%s --help: exit code %d, want 0", cmd, code)

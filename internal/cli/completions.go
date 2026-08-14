@@ -8,7 +8,7 @@ import (
 
 const bashCompletion = `_envx_completions() {
     local cur="${COMP_WORDS[COMP_CWORD]}"
-    local commands="init set get list unset run env import export diff doctor config key web completions help"
+    local commands="init set get list unset run shell copy env import export diff doctor config key web completions help"
     if [ "$COMP_CWORD" -eq 1 ]; then
         COMPREPLY=( $(compgen -W "$commands" -- "$cur") )
         return 0
@@ -25,16 +25,16 @@ complete -F _envx_completions envx
 `
 
 const zshCompletion = `#compdef envx
-_arguments '1:command:(init set get list unset run env import export diff doctor config key web completions help)' '*::arg:->args'
+_arguments '1:command:(init set get list unset run shell copy env import export diff doctor config key web completions help)' '*::arg:->args'
 `
 
-const fishCompletion = `complete -c envx -f -a "init set get list unset run env import export diff doctor config key web completions help"
+const fishCompletion = `complete -c envx -f -a "init set get list unset run shell copy env import export diff doctor config key web completions help"
 complete -c envx -f -n "__fish_use_subcommand" -a "env" -d "Manage environments"
 `
 
 const powershellCompletion = `Register-ArgumentCompleter -Native -CommandName envx -ScriptBlock {
     param($wordToComplete, $commandAst, $cursorPosition)
-    'init','set','get','list','unset','run','env','import','export','diff','doctor','config','key','web','completions','help' |
+    'init','set','get','list','unset','run','shell','copy','env','import','export','diff','doctor','config','key','web','completions','help' |
         Where-Object { $_ -like "$wordToComplete*" } |
         ForEach-Object {
             [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)

@@ -36,6 +36,7 @@ type Crypter interface {
 type CommandRunner interface {
 	Run(argv []string, shellCmd string, envVars map[string]string) (int, error)
 	Start(argv []string, shellCmd string, envVars map[string]string) (run.Process, error)
+	StartShell(shellCmd string, envVars map[string]string) (run.Process, error)
 }
 
 type VariableRow struct {
@@ -280,6 +281,27 @@ func (s *EnvxService) RunCommand(argv []string, shellCmd, envName string, overla
 		return 1, overlayCount, err
 	}
 	return code, overlayCount, nil
+}
+
+// runShell starts the interactive shell process. It is a variable so tests can
+// substitute a fake launcher and inspect the resolved environment.
+var runShell = func(runner CommandRunner, shellCmd string, envVars map[string]string) (int, error) {
+	proc, err := runner.StartShell(shellCmd, envVars)
+	if err != nil {
+		return 1, err
+	}
+	return proc.Wait()
+}
+
+func (s *EnvxService) RunShell(shellCmd, envName string, overlay bool) (int, error) {
+	_, envVars, err := s.ResolveRuntimeEnv(envName)
+	if err != nil {
+		return 1, err
+	}
+	if _, err := s.applyDotenvOverlay(envVars, overlay); err != nil {
+		return 1, err
+	}
+	return runShell(s.runner, shellCmd, envVars)
 }
 
 func (s *EnvxService) RunWatch(argv []string, shellCmd, envName string, overlay bool, poll time.Duration, log io.Writer, watchPaths []string) (int, error) {
