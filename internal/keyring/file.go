@@ -62,6 +62,28 @@ func (k *LocalKeyProvider) LoadKey() ([]byte, error) {
 	return nil, fmt.Errorf("%w: encryption key not found. Run 'envx init' or restore '.envx/key.bin'.", errs.ErrSecretKey)
 }
 
+func (k *LocalKeyProvider) WriteKey(raw string) error {
+	if _, err := decodeKey([]byte(raw)); err != nil {
+		return err
+	}
+	if k.exists(k.paths.KeyPath) {
+		oldData, err := os.ReadFile(k.paths.KeyPath)
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(k.paths.OldKeyPath, oldData, 0o600); err != nil {
+			return err
+		}
+		if err := k.restrict(k.paths.OldKeyPath); err != nil {
+			return err
+		}
+	}
+	if err := os.WriteFile(k.paths.KeyPath, []byte(raw), 0o600); err != nil {
+		return err
+	}
+	return k.restrict(k.paths.KeyPath)
+}
+
 func (k *LocalKeyProvider) exists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil

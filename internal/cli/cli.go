@@ -11,6 +11,10 @@ import (
 )
 
 func Run(args []string, stdout, stderr io.Writer) int {
+	return RunWithIO(args, os.Stdin, stdout, stderr)
+}
+
+func RunWithIO(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
 		printUsage(stdout)
 		return 0
@@ -20,7 +24,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	case "init":
 		return cmdInit(args[1:], stdout, stderr)
 	case "set":
-		return cmdSet(args[1:], stdout, stderr)
+		return cmdSet(args[1:], stdin, stdout, stderr)
 	case "get":
 		return cmdGet(args[1:], stdout, stderr)
 	case "list":
@@ -41,6 +45,8 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		return cmdDoctor(args[1:], stdout, stderr)
 	case "config":
 		return cmdConfig(args[1:], stdout, stderr)
+	case "key":
+		return cmdKey(args[1:], stdout, stderr)
 	case "completions":
 		return cmdCompletions(args[1:], stdout, stderr)
 	case "help", "-h", "--help":
@@ -72,6 +78,13 @@ func splitRootFlag(args []string) (string, []string) {
 		rest = append(rest, args[i])
 	}
 	return root, rest
+}
+
+func resolveRoot(root string) string {
+	if root == "" {
+		return bootstrap.DiscoverRoot()
+	}
+	return root
 }
 
 func projectService(root string) *core.EnvxService {
@@ -178,6 +191,7 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "  diff         Compare two environments.")
 	fmt.Fprintln(w, "  doctor       Diagnose project health (gitignore, secrets, key).")
 	fmt.Fprintln(w, "  config       View or change project-local settings.")
+	fmt.Fprintln(w, "  key          Manage the encryption key (status/rotate/export/import).")
 	fmt.Fprintln(w, "  completions  Generate shell completions.")
 	fmt.Fprintln(w, "  help         Show this help.")
 	fmt.Fprintln(w)

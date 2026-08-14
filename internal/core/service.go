@@ -1,9 +1,12 @@
 package core
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -17,12 +20,14 @@ type ConfigStore interface {
 	Initialize(cfg *ConfigFile, force bool) error
 	Load() (*ConfigFile, error)
 	Save(cfg *ConfigFile) error
+	Root() string
 }
 
 type Crypter interface {
 	EnsureKey() error
 	Encrypt(value string) (string, error)
 	Decrypt(value string) (string, error)
+	WriteKey(raw string) error
 }
 
 type CommandRunner interface {
@@ -249,12 +254,103 @@ func (s *EnvxService) ResolveRuntimeEnv(envName string) (string, map[string]stri
 	return resolved, envVars, nil
 }
 
-func (s *EnvxService) RunCommand(argv []string, shellCmd, envName string) (int, error) {
+func (s *EnvxService) RunCommand(argv []string, shellCmd, envName string, overlay bool) (int, int, error) {
 	_, envVars, err := s.ResolveRuntimeEnv(envName)
 	if err != nil {
-		return 1, err
+		return 1, 0, err
 	}
-	return s.runner.Run(argv, shellCmd, envVars)
+	overlayCount, err := s.applyDotenvOverlay(envVars, overlay)
+	if err != nil {
+		return 1, 0, err
+	}
+	code, err := s.runner.Run(argv, shellCmd, envVars)
+	if err != nil {
+		return 1, overlayCount, err
+	}
+	return code, overlayCount, nil
+}
+
+func (s *EnvxService) applyDotenvOverlay(envVars map[string]string, overlay bool) (int, error) {
+	if !overlay {
+		cfg, err := s.store.Load()
+		if err != nil {
+			return 0, err
+		}
+		if !cfg.Migration.OverlayDotenv {
+			return 0, nil
+		}
+	}
+	dotenvPath := filepath.Join(s.store.Root(), ".env")
+	data, err := os.ReadFile(dotenvPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	entries, err := parseDotenv(string(data))
+	if err != nil {
+		return 0, fmt.Errorf("legacy .env overlay: %w", err)
+	}
+	count := 0
+	for _, kv := range entries {
+		if _, exists := envVars[kv.key]; !exists {
+			envVars[kv.key] = kv.value
+			count++
+		}
+	}
+	return count, nil
+}
+
+func (s *EnvxService) RotateKey() (int, error) {
+	cfg, err := s.store.Load()
+	if err != nil {
+		return 0, err
+	}
+
+	type loc struct{ env, key string }
+	plaintexts := make(map[loc]string)
+	for envName, environment := range cfg.Environments {
+		for key, entry := range environment.Variables {
+			if !entry.IsSecret {
+				continue
+			}
+			plain, err := s.crypto.Decrypt(entry.Value)
+			if err != nil {
+				return 0, err
+			}
+			plaintexts[loc{env: envName, key: key}] = plain
+		}
+	}
+
+	raw := make([]byte, 32)
+	if _, err := rand.Read(raw); err != nil {
+		return 0, err
+	}
+	encoded := base64.URLEncoding.EncodeToString(raw)
+	if err := s.crypto.WriteKey(encoded); err != nil {
+		return 0, err
+	}
+
+	for envName, environment := range cfg.Environments {
+		for key, entry := range environment.Variables {
+			if !entry.IsSecret {
+				continue
+			}
+			newValue, err := s.crypto.Encrypt(plaintexts[loc{env: envName, key: key}])
+			if err != nil {
+				return 0, err
+			}
+			entry.Value = newValue
+			environment.Variables[key] = entry
+		}
+		cfg.Environments[envName] = environment
+	}
+
+	if err := s.store.Save(cfg); err != nil {
+		return 0, err
+	}
+	return len(plaintexts), nil
 }
 
 func (s *EnvxService) GetVariable(key, envName string, showSecret bool) (string, error) {
@@ -427,6 +523,8 @@ func (s *EnvxService) GetSetting(key string) (string, error) {
 		return strconv.FormatBool(cfg.Encryption.DefaultEncrypt), nil
 	case "key_backend":
 		return cfg.Encryption.KeyBackend, nil
+	case "migration.overlay_dotenv":
+		return strconv.FormatBool(cfg.Migration.OverlayDotenv), nil
 	case "active_env":
 		return cfg.ActiveEnv, nil
 	default:
@@ -440,6 +538,15 @@ func (s *EnvxService) SetDefaultEncrypt(value bool) error {
 		return err
 	}
 	cfg.Encryption.DefaultEncrypt = value
+	return s.store.Save(cfg)
+}
+
+func (s *EnvxService) SetOverlayDotenv(value bool) error {
+	cfg, err := s.store.Load()
+	if err != nil {
+		return err
+	}
+	cfg.Migration.OverlayDotenv = value
 	return s.store.Save(cfg)
 }
 

@@ -18,6 +18,10 @@ func New(paths config.ProjectPaths) *Store {
 	return &Store{paths: paths}
 }
 
+func (s *Store) Root() string {
+	return s.paths.Root
+}
+
 func (s *Store) Exists() bool {
 	_, err := os.Stat(s.paths.ConfigPath)
 	return err == nil

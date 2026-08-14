@@ -11,6 +11,7 @@ import (
 type KeyProvider interface {
 	EnsureKey() error
 	LoadKey() ([]byte, error)
+	WriteKey(raw string) error
 }
 
 type CryptoManager struct {
@@ -23,6 +24,10 @@ func NewCryptoManager(provider KeyProvider) *CryptoManager {
 
 func (c *CryptoManager) EnsureKey() error {
 	return c.provider.EnsureKey()
+}
+
+func (c *CryptoManager) WriteKey(raw string) error {
+	return c.provider.WriteKey(raw)
 }
 
 func (c *CryptoManager) Encrypt(value string) (string, error) {

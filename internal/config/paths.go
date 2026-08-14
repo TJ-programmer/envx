@@ -4,7 +4,10 @@ import (
 	"path/filepath"
 )
 
-const LegacyKeyFilename = "key.key"
+const (
+	LegacyKeyFilename = "key.key"
+	OldKeyFilename    = "key.old.bin"
+)
 
 type ProjectPaths struct {
 	Root          string
@@ -14,6 +17,7 @@ type ProjectPaths struct {
 	LockPath      string
 	KeyPath       string
 	LegacyKeyPath string
+	OldKeyPath    string
 }
 
 func ResolveProjectPaths(baseDir string) ProjectPaths {
@@ -27,5 +31,6 @@ func ResolveProjectPaths(baseDir string) ProjectPaths {
 		LockPath:      filepath.Join(configDir, "config.lock"),
 		KeyPath:       filepath.Join(configDir, "key.bin"),
 		LegacyKeyPath: filepath.Join(configDir, LegacyKeyFilename),
+		OldKeyPath:    filepath.Join(configDir, OldKeyFilename),
 	}
 }

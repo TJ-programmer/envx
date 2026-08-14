@@ -41,6 +41,16 @@ func cmdConfig(args []string, stdout, stderr io.Writer) int {
 			}
 			fmt.Fprintf(stdout, "Set %s=%t.\n", key, parsed)
 			return 0
+		case "migration.overlay_dotenv":
+			parsed, err := strconv.ParseBool(value)
+			if err != nil {
+				return printError(stderr, fmt.Errorf("'%s' expects true or false", key))
+			}
+			if err := service.SetOverlayDotenv(parsed); err != nil {
+				return printError(stderr, err)
+			}
+			fmt.Fprintf(stdout, "Set %s=%t.\n", key, parsed)
+			return 0
 		default:
 			return printError(stderr, fmt.Errorf("unknown setting '%s'", key))
 		}

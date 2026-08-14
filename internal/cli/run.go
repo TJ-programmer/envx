@@ -10,6 +10,7 @@ func cmdRun(args []string, stdout, stderr io.Writer) int {
 	root, args := splitRootFlag(args)
 	envName := ""
 	shellCmd := ""
+	overlay := false
 	cmdArgs := []string{}
 
 	separator := -1
@@ -38,15 +39,20 @@ func cmdRun(args []string, stdout, stderr io.Writer) int {
 			}
 			shellCmd = flags[i+1]
 			i++
+		case "--overlay":
+			overlay = true
 		default:
 			return printError(stderr, fmt.Errorf("unknown option '%s'", flags[i]))
 		}
 	}
 
 	service := projectService(root)
-	code, err := service.RunCommand(cmdArgs, shellCmd, envName)
+	code, overlayCount, err := service.RunCommand(cmdArgs, shellCmd, envName, overlay)
 	if err != nil {
 		return printError(stderr, err)
+	}
+	if overlayCount > 0 {
+		fmt.Fprintf(stderr, "Overlay: merged %d variable(s) from legacy .env\n", overlayCount)
 	}
 	return code
 }

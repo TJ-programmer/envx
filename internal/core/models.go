@@ -25,10 +25,15 @@ type EncryptionSettings struct {
 	KeyBackend     string `json:"key_backend"`
 }
 
+type MigrationSettings struct {
+	OverlayDotenv bool `json:"overlay_dotenv"`
+}
+
 type ConfigFile struct {
 	Version      int                        `json:"version"`
 	ActiveEnv    string                     `json:"active_env"`
 	Encryption   EncryptionSettings         `json:"encryption"`
+	Migration    MigrationSettings          `json:"migration"`
 	Environments map[string]EnvironmentSpec `json:"environments"`
 	Metadata     map[string]any             `json:"metadata"`
 }
@@ -40,6 +45,9 @@ func NewConfigFile(envName string) *ConfigFile {
 		Encryption: EncryptionSettings{
 			DefaultEncrypt: false,
 			KeyBackend:     "file",
+		},
+		Migration: MigrationSettings{
+			OverlayDotenv: false,
 		},
 		Environments: map[string]EnvironmentSpec{
 			envName: {Name: envName, Variables: map[string]VariableEntry{}},
