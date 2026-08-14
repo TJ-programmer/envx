@@ -4,7 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
-const { execSync } = require('child_process');
+const { execSync, execFileSync } = require('child_process');
 
 const IS_WINDOWS = process.platform === 'win32';
 const binName = IS_WINDOWS ? 'envx.exe' : 'envx';
@@ -76,12 +76,34 @@ function binaryInPackage(pkgDir) {
   return path.join(pkgDir, 'vendor', binName);
 }
 
-async function fetchBuffer(url) {
-  const res = await fetch(url, { redirect: 'follow' });
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status} ${res.statusText}: ${url}`);
+function fetchWithCurl(url) {
+  const tmp = path.join(
+    os.tmpdir(),
+    `envx-dl-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
+  try {
+    const curl = IS_WINDOWS ? 'curl.exe' : 'curl';
+    execFileSync(curl, ['-sSL', '--fail', '-o', tmp, url], { stdio: 'inherit' });
+    return fs.readFileSync(tmp);
+  } finally {
+    fs.rmSync(tmp, { force: true });
   }
-  return Buffer.from(await res.arrayBuffer());
+}
+
+async function fetchBuffer(url) {
+  try {
+    const res = await fetch(url, { redirect: 'follow' });
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status} ${res.statusText}: ${url}`);
+    }
+    return Buffer.from(await res.arrayBuffer());
+  } catch (err) {
+    try {
+      return fetchWithCurl(url);
+    } catch (curlErr) {
+      throw new Error(`${err.message}; curl fallback also failed: ${curlErr.message}`);
+    }
+  }
 }
 
 async function installBinary(destDir, version) {

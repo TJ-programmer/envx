@@ -3,7 +3,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "A faster, safer drop-in replacement for .env files. Project-local env vars, secrets encrypted at rest, zero daemons.",
   "license": "MIT",
   "homepage": "https://github.com/TJ-programmer/envx",
