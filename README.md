@@ -57,15 +57,32 @@ envx run --watch -- python app.py      # auto-restart when env changes
 
 envx ships as a **single static binary** — no runtime, interpreter, or package manager required.
 
-### macOS / Linux
+### Package managers
+
+Install with whatever you already use — npm/pnpm/bun, Homebrew, or Scoop all work out of the box:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/TJ-programmer/envx/main/scripts/install.sh | sh
+# npm / pnpm / bun (downloads the prebuilt binary for your platform)
+npm install -g envx
+pnpm add -g envx
+bun add -g envx
+
+# macOS / Linux
+brew tap TJ-programmer/envx
+brew install envx
+
+# Windows
+scoop bucket add envx https://github.com/TJ-programmer/scoop-envx
+scoop install envx
 ```
 
-### Windows (PowerShell)
+### One-liners
 
-```powershell
+```bash
+# macOS / Linux
+curl -fsSL https://raw.githubusercontent.com/TJ-programmer/envx/main/scripts/install.sh | sh
+
+# Windows (PowerShell)
 powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr -useb https://raw.githubusercontent.com/TJ-programmer/envx/main/scripts/install.ps1 | iex"
 ```
 
@@ -83,11 +100,11 @@ cd envx
 go build -o bin/envx ./cmd/envx
 ```
 
-> **Forks:** the installers default to `TJ-programmer/envx`. Point them anywhere with `ENVX_REPO=owner/repo` (or `$env:ENVX_REPO` on Windows).
+> **Forks:** the installers and the npm package default to `TJ-programmer/envx`. Point them anywhere with `ENVX_REPO=owner/repo` (or `$env:ENVX_REPO` on Windows). The npm package also honors `ENVX_VERSION` to install a specific version.
 
 ### How releases work
 
-Pushing a tag like `v0.5.0` triggers the [release workflow](.github/workflows/release.yml) (GitHub Actions + GoReleaser), which cross-compiles static binaries for every platform, attaches them plus a `checksums.txt` to a GitHub Release, and embeds the tag version via `-ldflags`. The installers fetch the archive matching your OS/CPU, verify its SHA-256 checksum, and add `envx` to your PATH.
+Pushing a tag like `v0.5.0` triggers the [release workflow](.github/workflows/release.yml) (GitHub Actions + GoReleaser), which cross-compiles static binaries for every platform, attaches them plus a `checksums.txt` to a GitHub Release, and embeds the tag version via `-ldflags`. The installers, the npm package, and the Scoop manifest fetch the archive matching your OS/CPU and verify its SHA-256 checksum. After each release, publish the updated package to npm and refresh the Homebrew formula / Scoop hashes (see [CONTRIBUTING.md](CONTRIBUTING.md)).
 
 ---
 
@@ -178,6 +195,8 @@ The Go binary reads configs created by the earlier Python prototype (legacy sche
 go test ./...      # run all tests
 go vet ./...       # static analysis
 gofmt -l .         # formatting check
+
+cd npm && npm install   # smoke-test the npm package installer
 ```
 
 Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -55,6 +55,9 @@ internal/store/           key/value storage + environment overlays
 internal/web/             embedded web UI + JSON API
 legacy-python/            original Python prototype (reference only)
 scripts/                  install.sh / install.ps1 (release installers)
+npm/                      npm/pnpm/bun package (downloads the binary on install)
+brew/                     Homebrew formula (for a tap repo)
+scoop/                    Scoop manifest for Windows
 ```
 
 ## Making changes
@@ -149,4 +152,21 @@ Releases are automated via GitHub Actions + GoReleaser. Maintainers only:
 3. The workflow cross-compiles static binaries for Linux/macOS/Windows (amd64 + arm64), attaches them and `checksums.txt` to a GitHub Release, and embeds the tag version via `-ldflags`.
 4. Bump `internal/buildinfo.Version` on `main` to the next dev version (e.g. after releasing `v0.6.0`, set it to `0.6.1`).
 
-> Test the installers after a release: the `scripts/install.sh` and `scripts/install.ps1` one-liners in the README should work from a clean machine.
+### After the release
+
+The prebuilt binaries and `checksums.txt` are consumed by `scripts/install.sh`, `scripts/install.ps1`, and the `npm/` package installer. Keep the extra distribution channels in sync:
+
+1. **npm** — bump `version` in `npm/package.json` to the released version, then publish:
+
+   ```bash
+   cd npm
+   npm publish
+   ```
+
+   The `postinstall` step downloads the matching binary from the GitHub Release, so no binary is committed to the package.
+
+2. **Homebrew** — update `url` and `sha256` in `brew/envx.rb` (or run `brew bump-formula-pr` inside the tap). The formula builds from source, so it only needs the tag + tarball SHA.
+
+3. **Scoop** — bump `version` in `scoop/envx.json`; fill the two `hash` fields with the SHA-256s from `checksums.txt` for `envx_X.Y.Z_windows_amd64.zip` and `envx_X.Y.Z_windows_arm64.zip`. If the manifest lives in a bucket, `scoop checkver --update` does this automatically via `autoupdate`.
+
+> Test every channel from a clean machine after a release: the one-liner installers, `npm i -g envx`, `brew install envx`, and `scoop install envx`.

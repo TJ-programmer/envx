@@ -1,0 +1,30 @@
+{
+  "version": "0.5.0",
+  "description": "A faster, safer drop-in replacement for .env files - project-local env vars, secrets encrypted at rest",
+  "homepage": "https://github.com/TJ-programmer/envx",
+  "license": "MIT",
+  "architecture": {
+    "64bit": {
+      "url": "https://github.com/TJ-programmer/envx/releases/download/v0.5.0/envx_0.5.0_windows_amd64.zip",
+      "hash": ""
+    },
+    "arm64": {
+      "url": "https://github.com/TJ-programmer/envx/releases/download/v0.5.0/envx_0.5.0_windows_arm64.zip",
+      "hash": ""
+    }
+  },
+  "bin": "envx.exe",
+  "checkver": {
+    "github": "https://github.com/TJ-programmer/envx"
+  },
+  "autoupdate": {
+    "architecture": {
+      "64bit": {
+        "url": "https://github.com/TJ-programmer/envx/releases/download/v$version/envx_$version_windows_amd64.zip"
+      },
+      "arm64": {
+        "url": "https://github.com/TJ-programmer/envx/releases/download/v$version/envx_$version_windows_arm64.zip"
+      }
+    }
+  }
+}
