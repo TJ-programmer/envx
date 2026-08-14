@@ -35,22 +35,22 @@ type CommandRunner interface {
 }
 
 type VariableRow struct {
-	Key         string
-	Value       string
-	Secret      string
-	Environment string
+	Key         string `json:"key"`
+	Value       string `json:"value"`
+	Secret      string `json:"secret"`
+	Environment string `json:"environment"`
 }
 
 type EnvironmentRow struct {
-	Name      string
-	Active    string
-	Variables string
+	Name      string `json:"name"`
+	Active    string `json:"active"`
+	Variables string `json:"variables_count"`
 }
 
 type DiffRow struct {
-	Key    string
-	ValueA string
-	ValueB string
+	Key    string `json:"key"`
+	ValueA string `json:"value_a"`
+	ValueB string `json:"value_b"`
 }
 
 type EnvxService struct {
@@ -79,6 +79,14 @@ func (s *EnvxService) InitProject(envName string, force bool) (*ConfigFile, erro
 
 func (s *EnvxService) Load() (*ConfigFile, error) {
 	return s.store.Load()
+}
+
+func (s *EnvxService) IsInitialized() bool {
+	return s.store.Exists()
+}
+
+func (s *EnvxService) StoreRoot() string {
+	return s.store.Root()
 }
 
 func (s *EnvxService) SetVariable(key, value, envName string, secret, plain bool) (*ConfigFile, error) {

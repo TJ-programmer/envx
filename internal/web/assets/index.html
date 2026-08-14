@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>envx</title>
+<style>
+  :root { --bg:#0f1117; --panel:#161a24; --border:#262c3a; --text:#e6e9f0; --muted:#8b93a7; --accent:#5b8cff; --danger:#ff5c6c; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family: system-ui, "Segoe UI", sans-serif; background:var(--bg); color:var(--text); }
+  header { display:flex; align-items:center; gap:16px; padding:14px 22px; border-bottom:1px solid var(--border); }
+  header h1 { font-size:18px; margin:0; }
+  .muted { color:var(--muted); font-size:13px; }
+  .mono { font-family: ui-monospace, Consolas, monospace; }
+  main { padding:22px; max-width:1000px; margin:0 auto; }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px; margin-bottom:18px; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  label { font-size:13px; color:var(--muted); }
+  input, select, button { background:#0d1017; border:1px solid var(--border); color:var(--text); border-radius:6px; padding:7px 10px; font-size:14px; }
+  button { cursor:pointer; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button.danger { background:transparent; border-color:var(--danger); color:var(--danger); }
+  button:disabled { opacity:.5; cursor:default; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--border); }
+  th { color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  .badge { font-size:11px; border-radius:4px; padding:2px 6px; background:#262c3a; color:var(--muted); }
+  .badge.secret { background:#3d2430; color:var(--danger); }
+  .checkbox-row { display:flex; align-items:center; gap:6px; }
+  .notice { font-size:14px; color:var(--muted); padding:20px; text-align:center; }
+  textarea { width:100%; min-height:140px; background:#0d1017; border:1px solid var(--border); color:var(--text); border-radius:6px; font-family:ui-monospace,Consolas,monospace; font-size:13px; padding:10px; }
+  #error { display:none; background:#3d1820; border:1px solid var(--danger); color:var(--danger); border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:14px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>envx</h1>
+  <span class="muted mono" id="root">&hellip;</span>
+  <span style="flex:1"></span>
+  <label>Environment
+    <select id="env"></select>
+  </label>
+</header>
+<main>
+  <div id="error"></div>
+
+  <div class="card">
+    <div class="row">
+      <input id="new-key" placeholder="KEY" style="width:160px">
+      <input id="new-value" placeholder="value" style="flex:1">
+      <label class="checkbox-row"><input type="checkbox" id="new-secret"> secret</label>
+      <button class="primary" id="add-btn">Add</button>
+      <span style="flex:1"></span>
+      <label class="checkbox-row"><input type="checkbox" id="show-secrets"> reveal secrets</label>
+      <button id="export-btn">Export .env</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <table>
+      <thead><tr><th>KEY</th><th>VALUE</th><th>TYPE</th><th>UPDATED</th><th></th></tr></thead>
+      <tbody id="vars"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <label>New environment</label>
+      <input id="new-env" placeholder="name" style="width:160px">
+      <button class="primary" id="create-env-btn">Create</button>
+      <span style="flex:1"></span>
+      <button class="danger" id="delete-env-btn">Delete active env</button>
+    </div>
+  </div>
+
+  <textarea id="export-out" style="display:none"></textarea>
+</main>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+let state = { active: "", showSecrets: false };
+
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function showError(msg) {
+  const el = $("error");
+  if (msg) { el.textContent = msg; el.style.display = "block"; }
+  else { el.style.display = "none"; }
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, {
+    headers: { "Content-Type": "application/json" },
+    ...opts,
+  });
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch (e) { data = text; }
+  if (!res.ok) throw new Error((data && data.error) || "Request failed");
+  return data;
+}
+
+async function refresh() {
+  try {
+    const status = await api("/api/status");
+    if (!status.initialized) {
+      $("root").textContent = "not initialized - run 'envx init'";
+      showError("Project is not initialized. Run 'envx init' in the project and reload.");
+      return;
+    }
+    showError(null);
+    $("root").textContent = status.root;
+    state.active = state.active || status.active_env;
+    const envSel = $("env");
+    const names = status.environments;
+    const current = envSel.value;
+    if (!names.includes(current)) {
+      envSel.innerHTML = "";
+      for (const name of names) {
+        const o = document.createElement("option");
+        o.value = name;
+        o.textContent = name;
+        envSel.appendChild(o);
+      }
+    }
+    if (envSel.value) state.active = envSel.value;
+    else if (names.length) { envSel.value = names[0]; state.active = names[0]; }
+    await loadVariables();
+  } catch (e) {
+    showError(e.message);
+  }
+}
+
+async function loadVariables() {
+  const tbody = $("vars");
+  tbody.innerHTML = "";
+  const data = await api("/api/variables?env=" + encodeURIComponent(state.active) + "&show_secrets=" + state.showSecrets);
+  if (!data.variables.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="notice">No variables in this environment yet.</td></tr>';
+    return;
+  }
+  for (const v of data.variables) {
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      '<td class="mono">' + esc(v.key) + "</td>" +
+      '<td class="mono">' + esc(v.value) + "</td>" +
+      "<td>" + (v.secret ? '<span class="badge secret">secret</span>' : '<span class="badge">plain</span>') + "</td>" +
+      '<td class="muted">' + esc(v.updated_at) + "</td>" +
+      '<td><button class="danger" data-key="' + esc(v.key) + '">delete</button></td>';
+    tbody.appendChild(tr);
+  }
+  tbody.querySelectorAll("button[data-key]").forEach(b => {
+    b.addEventListener("click", async () => {
+      try {
+        await api("/api/variables/" + encodeURIComponent(b.dataset.key) + "?env=" + encodeURIComponent(state.active), { method: "DELETE" });
+        await loadVariables();
+      } catch (e) { showError(e.message); }
+    });
+  });
+}
+
+$("add-btn").addEventListener("click", async () => {
+  const key = $("new-value").value = $("new-key").value.trim();
+  const value = $("new-value").value;
+  const secret = $("new-secret").checked;
+  if (!key) { showError("KEY is required."); return; }
+  try {
+    await api("/api/variables", {
+      method: "POST",
+      body: JSON.stringify({ key, value, env: state.active, secret }),
+    });
+    $("new-key").value = "";
+    $("new-value").value = "";
+    $("new-secret").checked = false;
+    await loadVariables();
+  } catch (e) { showError(e.message); }
+});
+
+$("create-env-btn").addEventListener("click", async () => {
+  const name = $("new-env").value.trim();
+  if (!name) { showError("Environment name is required."); return; }
+  try {
+    await api("/api/environments", { method: "POST", body: JSON.stringify({ name }) });
+    $("new-env").value = "";
+    state.active = name;
+    await refresh();
+  } catch (e) { showError(e.message); }
+});
+
+$("delete-env-btn").addEventListener("click", async () => {
+  if (!confirm("Delete environment '" + state.active + "' and all of its variables?")) return;
+  try {
+    await api("/api/environments/" + encodeURIComponent(state.active), { method: "DELETE" });
+    state.active = "";
+    await refresh();
+  } catch (e) { showError(e.message); }
+});
+
+$("env").addEventListener("change", async () => {
+  state.active = $("env").value;
+  try { await loadVariables(); } catch (e) { showError(e.message); }
+});
+
+$("show-secrets").addEventListener("change", async () => {
+  state.showSecrets = $("show-secrets").checked;
+  try { await loadVariables(); } catch (e) { showError(e.message); }
+});
+
+$("export-btn").addEventListener("click", async () => {
+  try {
+    const res = await fetch("/api/export?env=" + encodeURIComponent(state.active) + "&format=dotenv");
+    const text = await res.text();
+    if (!res.ok) { let msg = text; try { msg = JSON.parse(text).error; } catch (e) {} throw new Error(msg); }
+    const ta = $("export-out");
+    ta.value = text;
+    ta.style.display = "block";
+    ta.select();
+  } catch (e) { showError(e.message); }
+});
+
+refresh();
+</script>
+</body>
+</html>

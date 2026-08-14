@@ -47,6 +47,8 @@ func RunWithIO(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return cmdConfig(args[1:], stdout, stderr)
 	case "key":
 		return cmdKey(args[1:], stdout, stderr)
+	case "web":
+		return cmdWeb(args[1:], stdout, stderr)
 	case "completions":
 		return cmdCompletions(args[1:], stdout, stderr)
 	case "help", "-h", "--help":
@@ -192,6 +194,7 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "  doctor       Diagnose project health (gitignore, secrets, key).")
 	fmt.Fprintln(w, "  config       View or change project-local settings.")
 	fmt.Fprintln(w, "  key          Manage the encryption key (status/rotate/export/import).")
+	fmt.Fprintln(w, "  web          Open the local web UI (localhost, foreground).")
 	fmt.Fprintln(w, "  completions  Generate shell completions.")
 	fmt.Fprintln(w, "  help         Show this help.")
 	fmt.Fprintln(w)
