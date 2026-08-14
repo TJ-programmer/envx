@@ -1,0 +1,38 @@
+project_name: envx
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: envx
+    main: ./cmd/envx
+    binary: envx
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X envx/internal/buildinfo.Version={{.Version}}
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+
+archives:
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  use: github
+
+release:
+  draft: false
+  prerelease: false
