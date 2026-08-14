@@ -3,11 +3,14 @@ package web
 import (
 	"encoding/json"
 	"net/http"
+
+	"envx/internal/buildinfo"
+	"envx/internal/gitignore"
 )
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	if !s.service.IsInitialized() {
-		writeJSON(w, http.StatusOK, map[string]any{"initialized": false})
+		writeJSON(w, http.StatusOK, map[string]any{"initialized": false, "version": buildinfo.Version})
 		return
 	}
 	cfg, err := s.service.Load()
@@ -17,6 +20,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"initialized":     true,
+		"version":         buildinfo.Version,
 		"root":            s.service.StoreRoot(),
 		"active_env":      cfg.ActiveEnv,
 		"environments":    envNames(cfg),
@@ -24,6 +28,29 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		"overlay_dotenv":  cfg.Migration.OverlayDotenv,
 		"schema_version":  cfg.Version,
 	})
+}
+
+func (s *Server) handleInit(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		EnvName string `json:"env_name"`
+		Force   bool   `json:"force"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	if req.EnvName == "" {
+		req.EnvName = "dev"
+	}
+	if _, err := s.service.InitProject(req.EnvName, req.Force); err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	if err := gitignore.Ensure(s.service.StoreRoot(), false); err != nil {
+		writeErr(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"ok": true, "active_env": req.EnvName})
 }
 
 func (s *Server) handleEnvironments(w http.ResponseWriter, r *http.Request) {

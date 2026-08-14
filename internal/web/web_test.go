@@ -250,3 +250,37 @@ func TestNotInitializedStatus(t *testing.T) {
 		t.Fatalf("initialized = %v", payload["initialized"])
 	}
 }
+
+func TestInitEndpoint(t *testing.T) {
+	service := bootstrap.BuildService(t.TempDir())
+	srv := httptest.NewServer(New(service))
+	defer srv.Close()
+
+	code, payload := doJSON(t, "POST", srv.URL+"/api/init", map[string]any{"env_name": "staging"})
+	if code != http.StatusCreated {
+		t.Fatalf("status = %d, want 201 (payload %v)", code, payload)
+	}
+	if payload["active_env"] != "staging" {
+		t.Fatalf("active_env = %v", payload["active_env"])
+	}
+
+	code, payload = doJSON(t, "GET", srv.URL+"/api/status", nil)
+	if code != http.StatusOK || payload["initialized"] != true {
+		t.Fatalf("after init: code=%d payload=%v", code, payload)
+	}
+	if payload["version"] == nil || payload["version"] == "" {
+		t.Fatal("status missing version")
+	}
+	names, _ := payload["environments"].([]any)
+	if len(names) != 1 || names[0] != "staging" {
+		t.Fatalf("environments = %v", payload["environments"])
+	}
+}
+
+func TestInitEndpointRejectsWhenExists(t *testing.T) {
+	srv := newTestServer(t)
+	code, _ := doJSON(t, "POST", srv.URL+"/api/init", map[string]any{"env_name": "dev"})
+	if code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400 (project already initialized)", code)
+	}
+}

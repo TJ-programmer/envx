@@ -11,6 +11,9 @@ func cmdSet(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return printError(stderr, errors.New("usage: envx set KEY [VALUE] [--env ENV] [--secret|--plain]"))
 	}
 	root, rest := splitRootFlag(args)
+	if checkHelp(rest, stdout, "set") {
+		return 0
+	}
 	key := rest[0]
 	rest = rest[1:]
 	envName := ""

@@ -8,6 +8,9 @@ import (
 
 func cmdRun(args []string, stdout, stderr io.Writer) int {
 	root, args := splitRootFlag(args)
+	if checkHelp(args, stdout, "run") {
+		return 0
+	}
 	envName := ""
 	shellCmd := ""
 	overlay := false

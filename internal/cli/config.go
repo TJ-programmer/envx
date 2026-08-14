@@ -9,6 +9,9 @@ import (
 
 func cmdConfig(args []string, stdout, stderr io.Writer) int {
 	root, rest := splitRootFlag(args)
+	if checkHelp(rest, stdout, "config") {
+		return 0
+	}
 	if len(rest) < 1 {
 		return printError(stderr, errors.New("usage: envx config get|set <key> [value]"))
 	}

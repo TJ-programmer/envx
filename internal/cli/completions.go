@@ -43,6 +43,9 @@ const powershellCompletion = `Register-ArgumentCompleter -Native -CommandName en
 `
 
 func cmdCompletions(args []string, stdout, stderr io.Writer) int {
+	if checkHelp(args, stdout, "completions") {
+		return 0
+	}
 	if len(args) < 1 {
 		return printError(stderr, errors.New("usage: envx completions bash|zsh|fish|powershell"))
 	}

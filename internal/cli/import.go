@@ -11,6 +11,9 @@ func cmdImport(args []string, stdout, stderr io.Writer) int {
 		return printError(stderr, errors.New("usage: envx import FILE [--env ENV]"))
 	}
 	root, rest := splitRootFlag(args)
+	if checkHelp(rest, stdout, "import") {
+		return 0
+	}
 	path := rest[0]
 	rest = rest[1:]
 	envName := ""

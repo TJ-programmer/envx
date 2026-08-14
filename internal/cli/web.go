@@ -17,6 +17,9 @@ import (
 
 func cmdWeb(args []string, stdout, stderr io.Writer) int {
 	root, rest := splitRootFlag(args)
+	if checkHelp(rest, stdout, "web") {
+		return 0
+	}
 	port := 4319
 	openBrowser := true
 	for len(rest) > 0 {
@@ -40,12 +43,11 @@ func cmdWeb(args []string, stdout, stderr io.Writer) int {
 	}
 
 	service := projectService(root)
-	if !service.IsInitialized() {
-		return printError(stderr, errors.New("project is not initialized. Run 'envx init' first."))
-	}
-
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
 	url := "http://" + addr
+	if !service.IsInitialized() {
+		fmt.Fprintln(stdout, "Project is not initialized; you can initialize it from the web UI.")
+	}
 	fmt.Fprintf(stdout, "envx web running at %s\n", url)
 	fmt.Fprintf(stdout, "Press Ctrl+C to stop.\n")
 	if openBrowser {
@@ -62,7 +64,7 @@ func cmdWeb(args []string, stdout, stderr io.Writer) int {
 			return printError(stderr, fmt.Errorf("failed to start web server: %v", err))
 		}
 		return 0
-	case <-signalContext().Done():
+	case <-webSignalCtx().Done():
 		server.Close()
 		return 0
 	}
@@ -76,6 +78,8 @@ func signalContext() context.Context {
 	}()
 	return ctx
 }
+
+var webSignalCtx = signalContext
 
 func openInBrowser(url string) {
 	var cmd *exec.Cmd

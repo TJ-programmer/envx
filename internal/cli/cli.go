@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 
 	"envx/internal/bootstrap"
+	"envx/internal/buildinfo"
 	"envx/internal/core"
 )
 
@@ -51,8 +53,13 @@ func RunWithIO(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return cmdWeb(args[1:], stdout, stderr)
 	case "completions":
 		return cmdCompletions(args[1:], stdout, stderr)
-	case "help", "-h", "--help":
+	case "help":
+		return cmdHelp(args[1:], stdout, stderr)
+	case "-h", "--help":
 		printUsage(stdout)
+		return 0
+	case "version", "--version", "-V":
+		printVersion(stdout)
 		return 0
 	default:
 		fmt.Fprintf(stderr, "Error: unknown command '%s'\n", args[0])
@@ -87,6 +94,56 @@ func resolveRoot(root string) string {
 		return bootstrap.DiscoverRoot()
 	}
 	return root
+}
+
+func printVersion(w io.Writer) {
+	fmt.Fprintf(w, "envx %s (%s, schema v%d)\n", buildinfo.Version, runtime.Version(), core.SchemaVersion)
+}
+
+var commandUsage = map[string]string{
+	"init":        "usage: envx init [--env NAME] [--force] [--no-gitignore] [--root DIR]",
+	"set":         "usage: envx set KEY [VALUE] [--env ENV] [--secret|--plain] [--root DIR]",
+	"get":         "usage: envx get KEY [--env ENV] [--show-secret] [--root DIR]",
+	"list":        "usage: envx list [--env ENV] [--show-secrets] [--format table|json] [--root DIR]",
+	"unset":       "usage: envx unset KEY [--env ENV] [--root DIR]",
+	"run":         "usage: envx run [--env ENV] [--shell CMD] [--overlay] [--root DIR] -- <command>...",
+	"env":         "usage: envx env create|use|delete|list [NAME] [--root DIR]",
+	"import":      "usage: envx import FILE [--env ENV] [--root DIR]",
+	"export":      "usage: envx export [--env ENV] [--format shell|dotenv|json] [--root DIR]",
+	"diff":        "usage: envx diff ENV_A ENV_B [--root DIR]",
+	"doctor":      "usage: envx doctor [--root DIR]",
+	"config":      "usage: envx config get|set KEY [VALUE] [--root DIR]",
+	"key":         "usage: envx key status|rotate|export|import [--root DIR]",
+	"web":         "usage: envx web [--port PORT] [--no-open] [--root DIR]",
+	"completions": "usage: envx completions bash|zsh|fish|powershell",
+	"version":     "usage: envx version",
+}
+
+func printCommandUsage(w io.Writer, command string) {
+	if usage, ok := commandUsage[command]; ok {
+		fmt.Fprintln(w, usage)
+		return
+	}
+	printUsage(w)
+}
+
+func cmdHelp(args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 {
+		printUsage(stdout)
+		return 0
+	}
+	printCommandUsage(stdout, args[0])
+	return 0
+}
+
+func checkHelp(args []string, stdout io.Writer, command string) bool {
+	for _, arg := range args {
+		if arg == "--help" || arg == "-h" {
+			printCommandUsage(stdout, command)
+			return true
+		}
+	}
+	return false
 }
 
 func projectService(root string) *core.EnvxService {
@@ -196,7 +253,8 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "  key          Manage the encryption key (status/rotate/export/import).")
 	fmt.Fprintln(w, "  web          Open the local web UI (localhost, foreground).")
 	fmt.Fprintln(w, "  completions  Generate shell completions.")
-	fmt.Fprintln(w, "  help         Show this help.")
+	fmt.Fprintln(w, "  version      Show version info.")
+	fmt.Fprintln(w, "  help         Show help for a command.")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Global option:")
 	fmt.Fprintln(w, "  --root DIR   Use DIR as the project root instead of auto-discovery.")

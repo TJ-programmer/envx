@@ -50,6 +50,8 @@ envx doctor
 envx config get|set KEY [VALUE]
 envx key status|rotate|export|import
 envx web [--port PORT] [--no-open]
+envx version
+envx help [command]      # or: envx <command> --help
 envx completions bash|zsh|fish|powershell
 ```
 
@@ -62,7 +64,8 @@ All commands accept `--root DIR` to point at a project instead of auto-discoveri
 - `doctor` checks project health: key present, config valid, secrets stored in plaintext that look sensitive, and whether `.envx/` is gitignored.
 - `config` manages project-local settings such as `encryption.default_encrypt` (store everything encrypted) and `migration.overlay_dotenv` (always overlay a legacy `.env` in `run`).
 - `key rotate` generates a fresh encryption key and re-encrypts every secret, backing up the old key to `.envx/key.old.bin`; `key export`/`key import` backup and restore a key file.
-- `web` starts a local GUI on `http://127.0.0.1:4319` (foreground; `--port` to change, `--no-open` to skip launching the browser). It's a single embedded page backed by a JSON API — no daemon, no third-party, no network beyond localhost.
+- `web` starts a local GUI on `http://127.0.0.1:4319` (foreground; `--port` to change, `--no-open` to skip launching the browser). It's a single embedded page backed by a JSON API — no daemon, no third-party, no network beyond localhost. It auto-refreshes every 2s (paused while the tab is hidden) so changes made in a terminal show up live, and it can initialize a project directly (`POST /api/init`).
+- `version` prints version and Go runtime info; `help [command]` and `envx <command> --help` show per-command usage.
 - `completions` prints shell completion scripts.
 
 ### Migrating from `.env`

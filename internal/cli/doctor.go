@@ -15,6 +15,9 @@ import (
 
 func cmdDoctor(args []string, stdout, stderr io.Writer) int {
 	root, rest := splitRootFlag(args)
+	if checkHelp(rest, stdout, "doctor") {
+		return 0
+	}
 	if len(rest) > 0 {
 		return printError(stderr, fmt.Errorf("unknown option '%s'", rest[0]))
 	}

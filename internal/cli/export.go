@@ -8,6 +8,9 @@ import (
 
 func cmdExport(args []string, stdout, stderr io.Writer) int {
 	root, rest := splitRootFlag(args)
+	if checkHelp(rest, stdout, "export") {
+		return 0
+	}
 	envName := ""
 	format := "shell"
 	for len(rest) > 0 {

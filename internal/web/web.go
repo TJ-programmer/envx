@@ -19,6 +19,7 @@ func New(service *core.EnvxService) http.Handler {
 	s := &Server{service: service}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/status", s.handleStatus)
+	mux.HandleFunc("POST /api/init", s.handleInit)
 	mux.HandleFunc("GET /api/environments", s.handleEnvironments)
 	mux.HandleFunc("POST /api/environments", s.handleCreateEnvironment)
 	mux.HandleFunc("POST /api/environments/use", s.handleUseEnvironment)

@@ -44,6 +44,15 @@
 <main>
   <div id="error"></div>
 
+  <div class="card" id="init-card" style="display:none">
+    <div class="row">
+      <label>Initialize project</label>
+      <input id="init-env" placeholder="env name (default dev)" style="width:220px">
+      <button class="primary" id="init-btn">Initialize</button>
+    </div>
+  </div>
+
+  <div id="main-card">
   <div class="card">
     <div class="row">
       <input id="new-key" placeholder="KEY" style="width:160px">
@@ -74,6 +83,7 @@
   </div>
 
   <textarea id="export-out" style="display:none"></textarea>
+  </div>
 </main>
 <script>
 "use strict";
@@ -103,15 +113,23 @@ async function api(path, opts = {}) {
 async function refresh() {
   try {
     const status = await api("/api/status");
+    const mainCard = $("main-card");
+    const initCard = $("init-card");
+    const envSel = $("env");
     if (!status.initialized) {
-      $("root").textContent = "not initialized - run 'envx init'";
-      showError("Project is not initialized. Run 'envx init' in the project and reload.");
+      $("root").textContent = "not initialized";
+      mainCard.style.display = "none";
+      initCard.style.display = "block";
+      envSel.disabled = true;
+      showError(null);
       return;
     }
+    initCard.style.display = "none";
+    mainCard.style.display = "block";
+    envSel.disabled = false;
     showError(null);
     $("root").textContent = status.root;
     state.active = state.active || status.active_env;
-    const envSel = $("env");
     const names = status.environments;
     const current = envSel.value;
     if (!names.includes(current)) {
@@ -158,6 +176,15 @@ async function loadVariables() {
     });
   });
 }
+
+$("init-btn").addEventListener("click", async () => {
+  const name = $("init-env").value.trim();
+  try {
+    await api("/api/init", { method: "POST", body: JSON.stringify({ env_name: name || "dev" }) });
+    state.active = name || "dev";
+    await refresh();
+  } catch (e) { showError(e.message); }
+});
 
 $("add-btn").addEventListener("click", async () => {
   const key = $("new-value").value = $("new-key").value.trim();
@@ -219,6 +246,9 @@ $("export-btn").addEventListener("click", async () => {
 });
 
 refresh();
+setInterval(() => {
+  if (!document.hidden) refresh();
+}, 2000);
 </script>
 </body>
 </html>

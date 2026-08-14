@@ -17,8 +17,15 @@ func cmdKey(args []string, stdout, stderr io.Writer) int {
 		return printError(stderr, errors.New("usage: envx key status|rotate|export|import"))
 	}
 	sub := args[0]
+	if sub == "--help" || sub == "-h" {
+		printCommandUsage(stdout, "key")
+		return 0
+	}
 	rest := args[1:]
 	root, rest := splitRootFlag(rest)
+	if checkHelp(rest, stdout, "key") {
+		return 0
+	}
 
 	switch sub {
 	case "status":

@@ -11,6 +11,9 @@ import (
 
 func cmdInit(args []string, stdout, stderr io.Writer) int {
 	root, rest := splitRootFlag(args)
+	if checkHelp(rest, stdout, "init") {
+		return 0
+	}
 	envName := "dev"
 	force := false
 	skipGitignore := false

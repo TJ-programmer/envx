@@ -11,6 +11,9 @@ func cmdUnset(args []string, stdout, stderr io.Writer) int {
 		return printError(stderr, errors.New("usage: envx unset KEY [--env ENV]"))
 	}
 	root, rest := splitRootFlag(args)
+	if checkHelp(rest, stdout, "unset") {
+		return 0
+	}
 	key := rest[0]
 	rest = rest[1:]
 	envName := ""

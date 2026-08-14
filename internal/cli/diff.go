@@ -7,6 +7,9 @@ import (
 
 func cmdDiff(args []string, stdout, stderr io.Writer) int {
 	root, rest := splitRootFlag(args)
+	if checkHelp(rest, stdout, "diff") {
+		return 0
+	}
 	if len(rest) != 2 {
 		return printError(stderr, errors.New("usage: envx diff ENV_A ENV_B"))
 	}

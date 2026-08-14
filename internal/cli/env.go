@@ -8,6 +8,9 @@ import (
 
 func cmdEnv(args []string, stdout, stderr io.Writer) int {
 	root, rest := splitRootFlag(args)
+	if checkHelp(rest, stdout, "env") {
+		return 0
+	}
 	if len(rest) == 0 {
 		return printError(stderr, errors.New("usage: envx env create|use|delete|list [NAME]"))
 	}

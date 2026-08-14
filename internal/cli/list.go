@@ -8,6 +8,9 @@ import (
 
 func cmdList(args []string, stdout, stderr io.Writer) int {
 	root, rest := splitRootFlag(args)
+	if checkHelp(rest, stdout, "list") {
+		return 0
+	}
 	envName := ""
 	showSecrets := false
 	format := "table"

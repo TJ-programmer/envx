@@ -11,6 +11,9 @@ func cmdGet(args []string, stdout, stderr io.Writer) int {
 		return printError(stderr, errors.New("usage: envx get KEY [--env ENV] [--show-secret]"))
 	}
 	root, rest := splitRootFlag(args)
+	if checkHelp(rest, stdout, "get") {
+		return 0
+	}
 	key := rest[0]
 	rest = rest[1:]
 	envName := ""
