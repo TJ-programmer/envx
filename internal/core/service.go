@@ -1,9 +1,12 @@
 package core
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"strconv"
+	"strings"
 
 	"envx/internal/crypto"
 	"envx/internal/errs"
@@ -37,6 +40,12 @@ type EnvironmentRow struct {
 	Name      string
 	Active    string
 	Variables string
+}
+
+type DiffRow struct {
+	Key    string
+	ValueA string
+	ValueB string
 }
 
 type EnvxService struct {
@@ -246,6 +255,252 @@ func (s *EnvxService) RunCommand(argv []string, shellCmd, envName string) (int, 
 		return 1, err
 	}
 	return s.runner.Run(argv, shellCmd, envVars)
+}
+
+func (s *EnvxService) GetVariable(key, envName string, showSecret bool) (string, error) {
+	if err := ValidateVariableName(key); err != nil {
+		return "", err
+	}
+	cfg, err := s.store.Load()
+	if err != nil {
+		return "", err
+	}
+	resolved, err := resolveEnvironment(cfg, envName)
+	if err != nil {
+		return "", err
+	}
+	entry, ok := cfg.Environments[resolved].Variables[key]
+	if !ok {
+		return "", fmt.Errorf("%w: variable '%s' was not found in environment '%s'", errs.ErrVariableNotFound, key, resolved)
+	}
+	if entry.IsSecret && !showSecret {
+		return crypto.RedactedValue, nil
+	}
+	return s.crypto.Decrypt(entry.Value)
+}
+
+func (s *EnvxService) UnsetVariable(key, envName string) error {
+	if err := ValidateVariableName(key); err != nil {
+		return err
+	}
+	cfg, err := s.store.Load()
+	if err != nil {
+		return err
+	}
+	resolved, err := resolveEnvironment(cfg, envName)
+	if err != nil {
+		return err
+	}
+	environment := cfg.Environments[resolved]
+	if _, ok := environment.Variables[key]; !ok {
+		return fmt.Errorf("%w: variable '%s' was not found in environment '%s'", errs.ErrVariableNotFound, key, resolved)
+	}
+	delete(environment.Variables, key)
+	cfg.Environments[resolved] = environment
+	return s.store.Save(cfg)
+}
+
+func (s *EnvxService) ImportEnvFile(path, envName string) (int, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return 0, err
+	}
+	cfg, err := s.store.Load()
+	if err != nil {
+		return 0, err
+	}
+	resolved, err := resolveEnvironment(cfg, envName)
+	if err != nil {
+		return 0, err
+	}
+
+	entries, err := parseDotenv(string(data))
+	if err != nil {
+		return 0, err
+	}
+	for _, kv := range entries {
+		existing := cfg.Environments[resolved].Variables[kv.key]
+		secret := existing.IsSecret || IsSensitiveName(kv.key)
+		if _, err := s.SetVariable(kv.key, kv.value, resolved, secret, false); err != nil {
+			return 0, err
+		}
+	}
+	return len(entries), nil
+}
+
+func (s *EnvxService) ExportEnv(envName, format string) (string, error) {
+	_, envVars, err := s.ResolveRuntimeEnv(envName)
+	if err != nil {
+		return "", err
+	}
+	keys := make([]string, 0, len(envVars))
+	for key := range envVars {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	switch format {
+	case "shell":
+		var b strings.Builder
+		for _, key := range keys {
+			fmt.Fprintf(&b, "export %s=%s\n", key, shellQuote(envVars[key]))
+		}
+		return b.String(), nil
+	case "dotenv":
+		var b strings.Builder
+		for _, key := range keys {
+			fmt.Fprintf(&b, "%s=%s\n", key, dotenvQuote(envVars[key]))
+		}
+		return b.String(), nil
+	case "json":
+		data, err := json.MarshalIndent(envVars, "", "  ")
+		if err != nil {
+			return "", err
+		}
+		return string(data) + "\n", nil
+	default:
+		return "", fmt.Errorf("unknown export format '%s' (use shell, dotenv, or json)", format)
+	}
+}
+
+func (s *EnvxService) DiffEnvironments(envA, envB string) ([]DiffRow, error) {
+	cfg, err := s.store.Load()
+	if err != nil {
+		return nil, err
+	}
+	a, err := resolveEnvironment(cfg, envA)
+	if err != nil {
+		return nil, err
+	}
+	b, err := resolveEnvironment(cfg, envB)
+	if err != nil {
+		return nil, err
+	}
+	va, err := s.decryptedMap(cfg, a)
+	if err != nil {
+		return nil, err
+	}
+	vb, err := s.decryptedMap(cfg, b)
+	if err != nil {
+		return nil, err
+	}
+
+	keys := make(map[string]struct{}, len(va)+len(vb))
+	for key := range va {
+		keys[key] = struct{}{}
+	}
+	for key := range vb {
+		keys[key] = struct{}{}
+	}
+	sorted := make([]string, 0, len(keys))
+	for key := range keys {
+		sorted = append(sorted, key)
+	}
+	sort.Strings(sorted)
+
+	var rows []DiffRow
+	for _, key := range sorted {
+		valueA, inA := va[key]
+		valueB, inB := vb[key]
+		if inA == inB && (!inA || valueA == valueB) {
+			continue
+		}
+		rowA, rowB := "-", "-"
+		if inA {
+			rowA = valueA
+		}
+		if inB {
+			rowB = valueB
+		}
+		rows = append(rows, DiffRow{Key: key, ValueA: rowA, ValueB: rowB})
+	}
+	return rows, nil
+}
+
+func (s *EnvxService) GetSetting(key string) (string, error) {
+	cfg, err := s.store.Load()
+	if err != nil {
+		return "", err
+	}
+	switch key {
+	case "encryption.default_encrypt":
+		return strconv.FormatBool(cfg.Encryption.DefaultEncrypt), nil
+	case "key_backend":
+		return cfg.Encryption.KeyBackend, nil
+	case "active_env":
+		return cfg.ActiveEnv, nil
+	default:
+		return "", fmt.Errorf("unknown setting '%s'", key)
+	}
+}
+
+func (s *EnvxService) SetDefaultEncrypt(value bool) error {
+	cfg, err := s.store.Load()
+	if err != nil {
+		return err
+	}
+	cfg.Encryption.DefaultEncrypt = value
+	return s.store.Save(cfg)
+}
+
+func (s *EnvxService) decryptedMap(cfg *ConfigFile, envName string) (map[string]string, error) {
+	out := make(map[string]string, len(cfg.Environments[envName].Variables))
+	for key, entry := range cfg.Environments[envName].Variables {
+		value, err := s.crypto.Decrypt(entry.Value)
+		if err != nil {
+			return nil, err
+		}
+		out[key] = value
+	}
+	return out, nil
+}
+
+type keyValue struct {
+	key   string
+	value string
+}
+
+func parseDotenv(content string) ([]keyValue, error) {
+	var out []keyValue
+	for i, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if strings.HasPrefix(line, "export ") {
+			line = strings.TrimSpace(strings.TrimPrefix(line, "export "))
+		}
+		idx := strings.Index(line, "=")
+		if idx < 0 {
+			return nil, fmt.Errorf("invalid dotenv line %d: missing '='", i+1)
+		}
+		key := strings.TrimSpace(line[:idx])
+		if err := ValidateVariableName(key); err != nil {
+			return nil, fmt.Errorf("line %d: %w", i+1, err)
+		}
+		value := strings.TrimSpace(line[idx+1:])
+		if len(value) >= 2 && ((value[0] == '"' && value[len(value)-1] == '"') || (value[0] == '\'' && value[len(value)-1] == '\'')) {
+			value = value[1 : len(value)-1]
+		}
+		out = append(out, keyValue{key: key, value: value})
+	}
+	return out, nil
+}
+
+func shellQuote(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", `'\''`) + "'"
+}
+
+func dotenvQuote(value string) string {
+	if value == "" {
+		return `""`
+	}
+	if !strings.ContainsAny(value, " \t\n#\"'\\") {
+		return value
+	}
+	quoted := strings.ReplaceAll(value, `\`, `\\`)
+	quoted = strings.ReplaceAll(quoted, `"`, `\"`)
+	return `"` + quoted + `"`
 }
 
 func resolveEnvironment(cfg *ConfigFile, requested string) (string, error) {

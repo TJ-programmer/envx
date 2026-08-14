@@ -8,7 +8,8 @@
 - **Safer by default** — plain values by default (exact `.env` semantics); `--secret` encrypts values at rest with a project-local Fernet key.
 - **No manual `.gitignore`** — secrets and keys live inside `.envx/`, so a single ignored directory is all you need.
 - **Fast** — single Go binary, ~10ms startup.
-- **One command to migrate** — `envx init && envx import .env` (import lands in a later phase).
+- **No manual `.gitignore`** — `envx init` adds `.envx/` to your `.gitignore` automatically (opt out with `--no-gitignore`).
+- **One command to migrate** — `envx init && envx import .env`.
 
 ## Install
 
@@ -35,12 +36,30 @@ envx run -- python app.py
 ## Commands
 
 ```bash
-envx init [--env dev] [--force]
+envx init [--env dev] [--force] [--no-gitignore] [--root DIR]
 envx set KEY VALUE [--env ENV] [--secret|--plain]
+envx get KEY [--env ENV] [--show-secret]
 envx list [--env ENV] [--show-secrets] [--format table|json]
+envx unset KEY [--env ENV]
 envx run [--env ENV] [--shell "cmd | pipe"] -- <command>...
 envx env create|use|delete|list
+envx import FILE.env [--env ENV]
+envx export [--env ENV] [--format shell|dotenv|json]
+envx diff ENV_A ENV_B
+envx doctor
+envx config get|set KEY [VALUE]
+envx completions bash|zsh|fish|powershell
 ```
+
+All commands accept `--root DIR` to point at a project instead of auto-discovering it by walking up to the nearest `.git/` or `.envx/` directory.
+
+- `get` prints a value; secrets are redacted as `********` unless `--show-secret` is given (useful for scripts).
+- `import` reads a `.env` file and stores each variable; values whose names look sensitive (e.g. `API_TOKEN`, `DB_PASSWORD`) are stored encrypted.
+- `export` writes variables in `shell` (`export KEY='value'`), `dotenv` (`KEY=value`), or `json` form for piping to other tools.
+- `diff` shows keys and values that differ between two environments.
+- `doctor` checks project health: key present, config valid, secrets stored in plaintext that look sensitive, and whether `.envx/` is gitignored.
+- `config` manages project-local settings such as `encryption.default_encrypt`; when enabled, plain `set` calls are stored encrypted automatically.
+- `completions` prints shell completion scripts.
 
 ## Storage
 

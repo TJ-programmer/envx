@@ -10,6 +10,7 @@ var (
 	ErrEnvironmentNotFound   = errors.New("environment not found")
 	ErrEnvironmentConflict   = errors.New("environment operation violates constraints")
 	ErrVariableValidation    = errors.New("invalid value")
+	ErrVariableNotFound      = errors.New("variable not found")
 	ErrSecretKey             = errors.New("encryption key missing or invalid")
 	ErrCommandExecution      = errors.New("command execution failed")
 )
