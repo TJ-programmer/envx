@@ -10,6 +10,7 @@ import (
 	"envx/internal/config"
 	"envx/internal/core"
 	"envx/internal/gitignore"
+	"envx/internal/keyring"
 	"envx/internal/store"
 )
 
@@ -33,20 +34,36 @@ func cmdDoctor(args []string, stdout, stderr io.Writer) int {
 	}
 	fmt.Fprintf(stdout, "[ok]   Project initialized at %s\n", paths.Root)
 
-	if _, err := os.Stat(paths.KeyPath); err == nil {
-		fmt.Fprintf(stdout, "[ok]   Encryption key present\n")
-	} else if _, err := os.Stat(paths.LegacyKeyPath); err == nil {
-		fmt.Fprintf(stdout, "[warn] Using legacy key file (key.key); run any write command to migrate\n")
-	} else {
-		fmt.Fprintf(stdout, "[fail] Encryption key missing\n")
-	}
-
 	cfg, err := storeCfg.Load()
 	if err != nil {
 		fmt.Fprintf(stdout, "[fail] Config invalid: %v\n", err)
 		return 1
 	}
 	fmt.Fprintf(stdout, "[ok]   Config valid (schema v%d, active env '%s')\n", cfg.Version, cfg.ActiveEnv)
+
+	if cfg.Encryption.KeyBackend == "keyring" {
+		provider := keyring.NewLocalKeyProvider(paths)
+		if !keyring.Supported() {
+			fmt.Fprintf(stdout, "[fail] Config selects the OS keyring backend, which is not supported on this platform\n")
+			return 1
+		}
+		if provider.HasKey() {
+			fmt.Fprintf(stdout, "[ok]   Encryption key present in the OS keyring\n")
+		} else {
+			fmt.Fprintf(stdout, "[fail] Encryption key missing from the OS keyring\n")
+		}
+		if _, err := os.Stat(paths.KeyPath); err == nil {
+			fmt.Fprintf(stdout, "[warn] '.envx/key.bin' still exists; delete it once you confirm the keyring entry works\n")
+		}
+	} else {
+		if _, err := os.Stat(paths.KeyPath); err == nil {
+			fmt.Fprintf(stdout, "[ok]   Encryption key present\n")
+		} else if _, err := os.Stat(paths.LegacyKeyPath); err == nil {
+			fmt.Fprintf(stdout, "[warn] Using legacy key file (key.key); run any write command to migrate\n")
+		} else {
+			fmt.Fprintf(stdout, "[fail] Encryption key missing\n")
+		}
+	}
 
 	warnings := false
 	for envName, environment := range cfg.Environments {

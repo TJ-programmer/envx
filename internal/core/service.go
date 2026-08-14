@@ -5,14 +5,17 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"envx/internal/crypto"
 	"envx/internal/errs"
+	"envx/internal/run"
 )
 
 type ConfigStore interface {
@@ -32,6 +35,7 @@ type Crypter interface {
 
 type CommandRunner interface {
 	Run(argv []string, shellCmd string, envVars map[string]string) (int, error)
+	Start(argv []string, shellCmd string, envVars map[string]string) (run.Process, error)
 }
 
 type VariableRow struct {
@@ -276,6 +280,88 @@ func (s *EnvxService) RunCommand(argv []string, shellCmd, envName string, overla
 		return 1, overlayCount, err
 	}
 	return code, overlayCount, nil
+}
+
+func (s *EnvxService) RunWatch(argv []string, shellCmd, envName string, overlay bool, poll time.Duration, log io.Writer, watchPaths []string) (int, error) {
+	sig := fileSnapshot(watchPaths)
+
+	_, envVars, err := s.ResolveRuntimeEnv(envName)
+	if err != nil {
+		return 1, err
+	}
+	if _, err := s.applyDotenvOverlay(envVars, overlay); err != nil {
+		return 1, err
+	}
+	proc, err := s.runner.Start(argv, shellCmd, envVars)
+	if err != nil {
+		return 1, err
+	}
+
+	exitCh := make(chan int, 1)
+	go func() { code, _ := proc.Wait(); exitCh <- code }()
+
+	ticker := time.NewTicker(poll)
+	defer ticker.Stop()
+	for {
+		select {
+		case code := <-exitCh:
+			return code, nil
+		case <-ticker.C:
+			newSig := fileSnapshot(watchPaths)
+			if equalSnapshot(sig, newSig) {
+				continue
+			}
+			sig = newSig
+			if err := proc.Kill(); err != nil {
+				return 1, err
+			}
+			<-exitCh
+
+			_, envVars, err = s.ResolveRuntimeEnv(envName)
+			if err != nil {
+				return 1, err
+			}
+			count, err := s.applyDotenvOverlay(envVars, overlay)
+			if err != nil {
+				return 1, err
+			}
+			fmt.Fprintf(log, "[envx] files changed: restarting command")
+			if count > 0 {
+				fmt.Fprintf(log, " (overlay merged %d variable(s))", count)
+			}
+			fmt.Fprintln(log)
+			proc, err = s.runner.Start(argv, shellCmd, envVars)
+			if err != nil {
+				return 1, err
+			}
+			exitCh = make(chan int, 1)
+			go func() { code, _ := proc.Wait(); exitCh <- code }()
+		}
+	}
+}
+
+func fileSnapshot(paths []string) map[string]int64 {
+	sig := make(map[string]int64, len(paths))
+	for _, path := range paths {
+		if info, err := os.Stat(path); err == nil {
+			sig[path] = info.ModTime().UnixNano()
+		} else {
+			sig[path] = 0
+		}
+	}
+	return sig
+}
+
+func equalSnapshot(a, b map[string]int64) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for key, value := range a {
+		if b[key] != value {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *EnvxService) applyDotenvOverlay(envVars map[string]string, overlay bool) (int, error) {
@@ -556,6 +642,21 @@ func (s *EnvxService) SetOverlayDotenv(value bool) error {
 	}
 	cfg.Migration.OverlayDotenv = value
 	return s.store.Save(cfg)
+}
+
+func (s *EnvxService) SetKeyBackend(backend string) error {
+	if backend != "file" && backend != "keyring" {
+		return fmt.Errorf("unknown key backend '%s' (use 'file' or 'keyring')", backend)
+	}
+	cfg, err := s.store.Load()
+	if err != nil {
+		return err
+	}
+	cfg.Encryption.KeyBackend = backend
+	if err := s.store.Save(cfg); err != nil {
+		return err
+	}
+	return s.crypto.EnsureKey()
 }
 
 func (s *EnvxService) decryptedMap(cfg *ConfigFile, envName string) (map[string]string, error) {

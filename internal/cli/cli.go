@@ -101,12 +101,12 @@ func printVersion(w io.Writer) {
 }
 
 var commandUsage = map[string]string{
-	"init":        "usage: envx init [--env NAME] [--force] [--no-gitignore] [--root DIR]",
+	"init":        "usage: envx init [--env NAME] [--backend file|keyring] [--force] [--no-gitignore] [--root DIR]",
 	"set":         "usage: envx set KEY [VALUE] [--env ENV] [--secret|--plain] [--root DIR]",
 	"get":         "usage: envx get KEY [--env ENV] [--show-secret] [--root DIR]",
 	"list":        "usage: envx list [--env ENV] [--show-secrets] [--format table|json] [--root DIR]",
 	"unset":       "usage: envx unset KEY [--env ENV] [--root DIR]",
-	"run":         "usage: envx run [--env ENV] [--shell CMD] [--overlay] [--root DIR] -- <command>...",
+	"run":         "usage: envx run [--env ENV] [--shell CMD] [--overlay] [--watch] [--root DIR] -- <command>...",
 	"env":         "usage: envx env create|use|delete|list [NAME] [--root DIR]",
 	"import":      "usage: envx import FILE [--env ENV] [--root DIR]",
 	"export":      "usage: envx export [--env ENV] [--format shell|dotenv|json] [--root DIR]",

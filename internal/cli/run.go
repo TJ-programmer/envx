@@ -4,7 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
+	"time"
+
+	"envx/internal/config"
 )
+
+const watchPollInterval = 500 * time.Millisecond
 
 func cmdRun(args []string, stdout, stderr io.Writer) int {
 	root, args := splitRootFlag(args)
@@ -14,6 +20,7 @@ func cmdRun(args []string, stdout, stderr io.Writer) int {
 	envName := ""
 	shellCmd := ""
 	overlay := false
+	watch := false
 	cmdArgs := []string{}
 
 	separator := -1
@@ -44,12 +51,29 @@ func cmdRun(args []string, stdout, stderr io.Writer) int {
 			i++
 		case "--overlay":
 			overlay = true
+		case "--watch":
+			watch = true
 		default:
 			return printError(stderr, fmt.Errorf("unknown option '%s'", flags[i]))
 		}
 	}
 
 	service := projectService(root)
+	if watch {
+		paths := config.ResolveProjectPaths(resolveRoot(root))
+		watchPaths := []string{
+			filepath.Join(paths.Root, ".env"),
+			paths.ConfigPath,
+			paths.KeyPath,
+		}
+		fmt.Fprintln(stderr, "[envx] watch mode enabled: restarting on .env/config changes (Ctrl+C to stop)")
+		code, err := service.RunWatch(cmdArgs, shellCmd, envName, overlay, watchPollInterval, stderr, watchPaths)
+		if err != nil {
+			return printError(stderr, err)
+		}
+		return code
+	}
+
 	code, overlayCount, err := service.RunCommand(cmdArgs, shellCmd, envName, overlay)
 	if err != nil {
 		return printError(stderr, err)

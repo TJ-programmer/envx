@@ -33,12 +33,18 @@ func cmdKey(args []string, stdout, stderr io.Writer) int {
 			return printError(stderr, fmt.Errorf("unknown option '%s'", rest[0]))
 		}
 		paths := config.ResolveProjectPaths(resolveRoot(root))
-		fmt.Fprintf(stdout, "Backend: file\n")
-		fmt.Fprintf(stdout, "Key file: %s\n", paths.KeyPath)
-		fmt.Fprintf(stdout, "Present: %t\n", fileExists(paths.KeyPath))
-		if !fileExists(paths.KeyPath) && fileExists(paths.LegacyKeyPath) {
-			fmt.Fprintf(stdout, "Legacy key present: true\n")
+		provider := keyring.NewLocalKeyProvider(paths)
+		backend := provider.Backend()
+		fmt.Fprintf(stdout, "Backend: %s\n", backend)
+		if backend == "keyring" {
+			fmt.Fprintf(stdout, "Location: %s\n", provider.Location())
+		} else {
+			fmt.Fprintf(stdout, "Key file: %s\n", paths.KeyPath)
+			if !provider.HasKey() && fileExists(paths.LegacyKeyPath) {
+				fmt.Fprintf(stdout, "Legacy key present: true\n")
+			}
 		}
+		fmt.Fprintf(stdout, "Present: %t\n", provider.HasKey())
 		return 0
 	case "rotate":
 		if len(rest) != 0 {
@@ -49,21 +55,26 @@ func cmdKey(args []string, stdout, stderr io.Writer) int {
 		if err != nil {
 			return printError(stderr, err)
 		}
-		fmt.Fprintf(stdout, "Rotated encryption key; re-encrypted %d secret(s). Previous key saved to '.envx/key.old.bin'.\n", count)
+		backend := keyring.NewLocalKeyProvider(config.ResolveProjectPaths(resolveRoot(root))).Backend()
+		msg := "Rotated encryption key; re-encrypted %d secret(s)."
+		if backend == "file" {
+			msg += " Previous key saved to '.envx/key.old.bin'."
+		} else {
+			msg += " Previous key retained in the OS keyring."
+		}
+		fmt.Fprintf(stdout, msg+"\n", count)
 		return 0
 	case "export":
 		if len(rest) != 0 {
 			return printError(stderr, fmt.Errorf("unknown option '%s'", rest[0]))
 		}
 		paths := config.ResolveProjectPaths(resolveRoot(root))
-		if !fileExists(paths.KeyPath) {
-			return printError(stderr, errors.New("no key found; run 'envx init' first"))
-		}
-		data, err := os.ReadFile(paths.KeyPath)
+		provider := keyring.NewLocalKeyProvider(paths)
+		key, err := provider.LoadKey()
 		if err != nil {
 			return printError(stderr, err)
 		}
-		fmt.Fprintln(stdout, strings.TrimSpace(string(data)))
+		fmt.Fprintln(stdout, base64.URLEncoding.EncodeToString(key))
 		return 0
 	case "import":
 		if len(rest) < 1 {
@@ -87,7 +98,11 @@ func cmdKey(args []string, stdout, stderr io.Writer) int {
 		if err := provider.WriteKey(key); err != nil {
 			return printError(stderr, err)
 		}
-		fmt.Fprintln(stdout, "Imported key to '.envx/key.bin' (previous key backed up to '.envx/key.old.bin').")
+		if provider.Backend() == "keyring" {
+			fmt.Fprintln(stdout, "Imported key to the OS keyring (previous key retained as '...:old').")
+		} else {
+			fmt.Fprintln(stdout, "Imported key to '.envx/key.bin' (previous key backed up to '.envx/key.old.bin').")
+		}
 		return 0
 	default:
 		return printError(stderr, fmt.Errorf("unknown key subcommand '%s'", sub))

@@ -25,6 +25,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		"active_env":      cfg.ActiveEnv,
 		"environments":    envNames(cfg),
 		"default_encrypt": cfg.Encryption.DefaultEncrypt,
+		"key_backend":     cfg.Encryption.KeyBackend,
 		"overlay_dotenv":  cfg.Migration.OverlayDotenv,
 		"schema_version":  cfg.Version,
 	})

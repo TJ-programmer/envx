@@ -18,7 +18,7 @@ const bashCompletion = `_envx_completions() {
         config) COMPREPLY=( $(compgen -W "get set" -- "$cur") ) ;;
         key)    COMPREPLY=( $(compgen -W "status rotate export import" -- "$cur") ) ;;
         web)    COMPREPLY=( $(compgen -W "--port --no-open" -- "$cur") ) ;;
-        *)      COMPREPLY=( $(compgen -W "--env --format --secret --plain --show-secret --force --no-gitignore --shell --root --help" -- "$cur") ) ;;
+        *)      COMPREPLY=( $(compgen -W "--env --format --secret --plain --show-secret --force --no-gitignore --shell --overlay --watch --root --help" -- "$cur") ) ;;
     esac
 }
 complete -F _envx_completions envx

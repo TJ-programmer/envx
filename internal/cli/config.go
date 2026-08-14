@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+
+	"envx/internal/keyring"
 )
 
 func cmdConfig(args []string, stdout, stderr io.Writer) int {
@@ -53,6 +55,18 @@ func cmdConfig(args []string, stdout, stderr io.Writer) int {
 				return printError(stderr, err)
 			}
 			fmt.Fprintf(stdout, "Set %s=%t.\n", key, parsed)
+			return 0
+		case "encryption.key_backend":
+			if value != "file" && value != "keyring" {
+				return printError(stderr, fmt.Errorf("'%s' expects 'file' or 'keyring'", key))
+			}
+			if value == "keyring" && !keyring.Supported() {
+				return printError(stderr, errors.New("the 'keyring' backend is not supported on this platform (Windows only)"))
+			}
+			if err := service.SetKeyBackend(value); err != nil {
+				return printError(stderr, err)
+			}
+			fmt.Fprintf(stdout, "Set %s=%s.\n", key, value)
 			return 0
 		default:
 			return printError(stderr, fmt.Errorf("unknown setting '%s'", key))

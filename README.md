@@ -36,12 +36,12 @@ envx run -- python app.py
 ## Commands
 
 ```bash
-envx init [--env dev] [--force] [--no-gitignore] [--root DIR]
+envx init [--env dev] [--backend file|keyring] [--force] [--no-gitignore] [--root DIR]
 envx set KEY [VALUE] [--env ENV] [--secret|--plain]
 envx get KEY [--env ENV] [--show-secret]
 envx list [--env ENV] [--show-secrets] [--format table|json]
 envx unset KEY [--env ENV]
-envx run [--env ENV] [--shell "cmd | pipe"] [--overlay] -- <command>...
+envx run [--env ENV] [--shell "cmd | pipe"] [--overlay] [--watch] -- <command>...
 envx env create|use|delete|list
 envx import FILE.env [--env ENV]
 envx export [--env ENV] [--format shell|dotenv|json]
@@ -62,8 +62,10 @@ All commands accept `--root DIR` to point at a project instead of auto-discoveri
 - `export` writes variables in `shell` (`export KEY='value'`), `dotenv` (`KEY=value`), or `json` form for piping to other tools.
 - `diff` shows keys and values that differ between two environments.
 - `doctor` checks project health: key present, config valid, secrets stored in plaintext that look sensitive, and whether `.envx/` is gitignored.
-- `config` manages project-local settings such as `encryption.default_encrypt` (store everything encrypted) and `migration.overlay_dotenv` (always overlay a legacy `.env` in `run`).
-- `key rotate` generates a fresh encryption key and re-encrypts every secret, backing up the old key to `.envx/key.old.bin`; `key export`/`key import` backup and restore a key file.
+- `config` manages project-local settings such as `encryption.default_encrypt` (store everything encrypted), `encryption.key_backend` (`file` or `keyring`), and `migration.overlay_dotenv` (always overlay a legacy `.env` in `run`).
+- `run --watch` restarts the child command whenever `.env`, `.envx/config.json`, or the key file changes — ideal for dev servers that should pick up env changes automatically.
+- `key rotate` generates a fresh encryption key and re-encrypts every secret, backing up the old key; `key export`/`key import` backup and restore a key file.
+- `encryption.key_backend` selects where the encryption key lives. The default `file` backend stores it in `.envx/key.bin`. Set `config set encryption.key_backend keyring` (or `init --backend keyring`) on Windows to keep the key in the OS Credential Manager instead — envx migrates the existing key automatically, in either direction.
 - `web` starts a local GUI on `http://127.0.0.1:4319` (foreground; `--port` to change, `--no-open` to skip launching the browser). It's a single embedded page backed by a JSON API — no daemon, no third-party, no network beyond localhost. It auto-refreshes every 2s (paused while the tab is hidden) so changes made in a terminal show up live, and it can initialize a project directly (`POST /api/init`).
 - `version` prints version and Go runtime info; `help [command]` and `envx <command> --help` show per-command usage.
 - `completions` prints shell completion scripts.
@@ -85,9 +87,11 @@ envx run -- python app.py   # add --overlay (or config set migration.overlay_dot
 .envx/config.json          versioned config (schema v2)
 .envx/config.backup.json   previous config before each write
 .envx/config.lock          write lock
-.envx/key.bin              encryption key (gitignored)
-.envx/key.old.bin          previous key after rotation (gitignored)
+.envx/key.bin              encryption key, file backend (gitignored)
+.envx/key.old.bin          previous key after rotation, file backend (gitignored)
 ```
+
+With `encryption.key_backend=keyring`, no key files are written; the key is stored in the OS Credential Manager (Windows) under `envx:<project root>`.
 
 Encrypted values are stored as `enc:<fernet-token>` and redacted by default in `envx list`. Use `--show-secrets` to reveal them.
 
